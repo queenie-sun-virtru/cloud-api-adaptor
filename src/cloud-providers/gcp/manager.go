@@ -30,10 +30,10 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 	flags.BoolVar(&gcpcfg.DisableCVM, "disable-cvm", false, "Use non-CVMs for peer pods")
 	flags.StringVar(&gcpcfg.ConfidentialType, "confidential-type", "", "Used when DisableCVM=false. i.e: TDX, SEV or SEV_SNP. Check if the machine type is compatible.")
 	flags.IntVar(&gcpcfg.RootVolumeSize, "root-volume-size", 10, "Root volume size (in GiB) for the Pod VMs")
-	
+
 	var labelsStr string
 	flags.StringVar(&labelsStr, "gcp-labels", "", "Labels for the Pod VMs (key1=value1,key2=value2)")
-	
+
 	// Parse labels after flag parsing
 	if labelsStr != "" {
 		gcpcfg.Labels = parseLabels(labelsStr)
@@ -42,7 +42,7 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 
 func (_ *Manager) LoadEnv() {
 	provider.DefaultToEnv(&gcpcfg.GcpCredentials, "GCP_CREDENTIALS", "")
-	
+
 	// Load labels from environment if not already set
 	if gcpcfg.Labels == nil {
 		var labelsEnv string
@@ -66,10 +66,10 @@ func parseLabels(labelsStr string) map[string]string {
 	if labelsStr == "" {
 		return nil
 	}
-	
+
 	labels := make(map[string]string)
 	pairs := strings.Split(labelsStr, ",")
-	
+
 	for _, pair := range pairs {
 		if kv := strings.SplitN(strings.TrimSpace(pair), "=", 2); len(kv) == 2 {
 			key := strings.TrimSpace(kv[0])
@@ -79,6 +79,6 @@ func parseLabels(labelsStr string) map[string]string {
 			}
 		}
 	}
-	
+
 	return labels
 }
