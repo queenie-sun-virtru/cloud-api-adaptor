@@ -120,7 +120,7 @@ alibabacloud() {
 }
 
 gcp() {
-    test_vars GCP_CREDENTIALS GCP_PROJECT_ID GCP_ZONE PODVM_IMAGE_NAME
+    test_vars GCP_PROJECT_ID GCP_ZONE PODVM_IMAGE_NAME
 
     [[ "${PODVM_IMAGE_NAME}" ]] && optionals+="-image-name ${PODVM_IMAGE_NAME} "
     [[ "${GCP_PROJECT_ID}" ]] && optionals+="-gcp-project-id ${GCP_PROJECT_ID} "
@@ -133,9 +133,11 @@ gcp() {
 
     set -x
 
-    # Avoid using node's metadata service credentials for GCP authentication
-    echo "$GCP_CREDENTIALS" > /tmp/gcp-creds.json
-    export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-creds.json
+    # Use explicit credentials if provided, otherwise use default (Workload Identity/IMDS)
+    if [[ -n "$GCP_CREDENTIALS" ]]; then
+        echo "$GCP_CREDENTIALS" > /tmp/gcp-creds.json
+        export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-creds.json
+    fi
 
     exec cloud-api-adaptor gcp \
         -pods-dir "${PEER_PODS_DIR}" \
