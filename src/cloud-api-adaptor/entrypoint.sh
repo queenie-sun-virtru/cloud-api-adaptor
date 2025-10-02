@@ -130,6 +130,7 @@ gcp() {
     [[ "${GCP_DISK_TYPE}" ]] && optionals+="-disk-type ${GCP_DISK_TYPE} "                          # defaults to 'pd-standard'
     [[ "${GCP_CONFIDENTIAL_TYPE}" ]] && optionals+="-confidential-type ${GCP_CONFIDENTIAL_TYPE} "  # if not set raise exception only when disablecvm = false
     [[ "${ROOT_VOLUME_SIZE}" ]] && optionals+="-root-volume-size ${ROOT_VOLUME_SIZE} "             # Specify root volume size for pod vm
+    [[ "${GCP_LABELS}" ]] && optionals+="-gcp-labels ${GCP_LABELS} "                               # Custom labels applied to pod vm (format: key1=value1,key2=value2)
 
     set -x
 

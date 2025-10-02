@@ -18,6 +18,7 @@ type Config struct {
 	DisableCVM       bool
 	ConfidentialType string
 	RootVolumeSize   int
+	Labels           map[string]string
 }
 
 func (c Config) Redact() Config {

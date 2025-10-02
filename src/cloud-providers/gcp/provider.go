@@ -153,6 +153,7 @@ func (p *gcpProvider) CreateInstance(ctx context.Context, podName, sandboxID str
 				Type:       proto.String(computepb.AttachedDisk_PERSISTENT.String()),
 			},
 		},
+		Labels: p.serviceConfig.Labels,
 		Metadata: &computepb.Metadata{
 			Items: []*computepb.Items{
 				{
