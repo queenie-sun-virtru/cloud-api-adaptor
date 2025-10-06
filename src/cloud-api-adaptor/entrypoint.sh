@@ -122,6 +122,9 @@ alibabacloud() {
 gcp() {
     test_vars GCP_CREDENTIALS GCP_PROJECT_ID GCP_ZONE PODVM_IMAGE_NAME
 
+    # Initialize optionals for this function
+    local optionals=""
+
     [[ "${PODVM_IMAGE_NAME}" ]] && optionals+="-image-name ${PODVM_IMAGE_NAME} "
     [[ "${GCP_PROJECT_ID}" ]] && optionals+="-gcp-project-id ${GCP_PROJECT_ID} "
     [[ "${GCP_ZONE}" ]] && optionals+="-zone ${GCP_ZONE} "                                         # if not set retrieved from IMDS
@@ -139,7 +142,11 @@ gcp() {
     # Currently using service account keys due to GKE security defaults (read-only OS, minimal scopes)
     # that prevent Workload Identity from working with VM-creation workloads.
     printf '%s' "$GCP_CREDENTIALS" > /tmp/gcp-creds.json
+    chmod 600 /tmp/gcp-creds.json
     export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-creds.json
+
+    # Debug: Show what command will be executed
+    echo "DEBUG: About to execute: cloud-api-adaptor gcp -pods-dir ${PEER_PODS_DIR} -socket ${REMOTE_HYPERVISOR_ENDPOINT} ${optionals}"
 
     exec cloud-api-adaptor gcp \
         -pods-dir "${PEER_PODS_DIR}" \
