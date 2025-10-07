@@ -134,6 +134,7 @@ gcp() {
     [[ "${GCP_CONFIDENTIAL_TYPE}" ]] && optionals+="-confidential-type ${GCP_CONFIDENTIAL_TYPE} "  # if not set raise exception only when disablecvm = false
     [[ "${ROOT_VOLUME_SIZE}" ]] && optionals+="-root-volume-size ${ROOT_VOLUME_SIZE} "             # Specify root volume size for pod vm
     [[ "${GCP_LABELS}" ]] && optionals+="-gcp-labels ${GCP_LABELS} "                               # Custom labels applied to pod vm (format: key1=value1,key2=value2)
+    [[ "${GCP_TAGS}" ]] && optionals+="-gcp-tags ${GCP_TAGS} "                                     # Custom tags applied to pod vm (format: tag1,tag2,tag3)
 
     set -x
 

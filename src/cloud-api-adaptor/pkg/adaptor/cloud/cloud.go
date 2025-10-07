@@ -34,7 +34,9 @@ import (
 )
 
 const (
-	Version = "0.0.0"
+	Version              = "0.0.0"
+	MaxVMCreationRetries = 3
+	RetryBackoffBaseMs   = 1000 // 1 second base backoff
 )
 
 type ServerConfig struct {
@@ -137,6 +139,32 @@ func (s *cloudService) Teardown() error {
 
 func (s *cloudService) ConfigVerifier() error {
 	return s.provider.ConfigVerifier()
+}
+
+// cleanupFailedVM deletes a failed VM instance and resets sandbox state
+func (s *cloudService) cleanupFailedVM(ctx context.Context, sandbox *sandbox) {
+	if sandbox.lastFailedVMID != "" {
+		logger.Printf("cleaning up failed VM instance %s", sandbox.lastFailedVMID)
+		if err := s.provider.DeleteInstance(ctx, sandbox.lastFailedVMID); err != nil {
+			logger.Printf("warning: failed to cleanup VM %s: %v", sandbox.lastFailedVMID, err)
+		} else {
+			logger.Printf("successfully cleaned up failed VM %s", sandbox.lastFailedVMID)
+		}
+		sandbox.lastFailedVMID = ""
+	}
+}
+
+// shouldRetryVMCreation checks if we should retry VM creation
+func (s *cloudService) shouldRetryVMCreation(sandbox *sandbox, err error) bool {
+	if sandbox.retryCount >= MaxVMCreationRetries {
+		logger.Printf("exceeded max VM creation retries (%d) for sandbox %s", MaxVMCreationRetries, sandbox.id)
+		return false
+	}
+
+	// Only retry on certain types of errors (you can expand this logic)
+	// For now, retry on any error but with limits
+	logger.Printf("VM creation failed (attempt %d/%d): %v", sandbox.retryCount+1, MaxVMCreationRetries, err)
+	return true
 }
 
 func (s *cloudService) setInstance(sid sandboxID, instanceID, instanceName string) error {
@@ -375,10 +403,39 @@ func (s *cloudService) StartVM(ctx context.Context, req *pb.StartVMRequest) (res
 		return nil, fmt.Errorf("getting sandbox: %w", err)
 	}
 
-	instance, err := s.provider.CreateInstance(ctx, sandbox.podName, string(sid), sandbox.cloudConfig, sandbox.spec)
-	if err != nil {
-		return nil, fmt.Errorf("creating an instance : %w", err)
+	// Clean up any previous failed VM before attempting to create a new one
+	s.cleanupFailedVM(ctx, sandbox)
+
+	var instance *provider.Instance
+	for {
+		instance, err = s.provider.CreateInstance(ctx, sandbox.podName, string(sid), sandbox.cloudConfig, sandbox.spec)
+		if err != nil {
+			sandbox.retryCount++
+
+			if !s.shouldRetryVMCreation(sandbox, err) {
+				return nil, fmt.Errorf("creating an instance after %d retries: %w", sandbox.retryCount, err)
+			}
+
+			// Exponential backoff before retry
+			backoffMs := RetryBackoffBaseMs * (1 << (sandbox.retryCount - 1)) // 1s, 2s, 4s...
+			logger.Printf("retrying VM creation in %dms (attempt %d/%d)", backoffMs, sandbox.retryCount+1, MaxVMCreationRetries)
+
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("VM creation retry interrupted: %w", ctx.Err())
+			case <-time.After(time.Duration(backoffMs) * time.Millisecond):
+				// Continue to retry
+			}
+			continue
+		}
+
+		// Success! Reset retry count and break
+		sandbox.retryCount = 0
+		break
 	}
+
+	// Store the instance ID in case we need to clean it up later
+	sandbox.lastFailedVMID = instance.ID
 
 	if s.ppService != nil {
 		if err := s.ppService.OwnPeerPod(sandbox.podName, sandbox.podNamespace, instance.ID); err != nil {
@@ -432,11 +489,28 @@ func (s *cloudService) StartVM(ctx context.Context, req *pb.StartVMRequest) (res
 		if err := sandbox.agentProxy.Shutdown(); err != nil {
 			logger.Printf("stopping agent proxy: %v", err)
 		}
+		// Clean up the VM we just created since the operation was cancelled
+		if instance != nil && instance.ID != "" {
+			logger.Printf("cleaning up VM %s due to cancellation", instance.ID)
+			if delErr := s.provider.DeleteInstance(ctx, instance.ID); delErr != nil {
+				logger.Printf("warning: failed to cleanup VM %s: %v", instance.ID, delErr)
+			}
+		}
 		return nil, ctx.Err()
 	case err := <-errCh:
+		// Agent proxy failed - clean up the VM
+		if instance != nil && instance.ID != "" {
+			logger.Printf("cleaning up VM %s due to agent proxy failure: %v", instance.ID, err)
+			if delErr := s.provider.DeleteInstance(context.Background(), instance.ID); delErr != nil {
+				logger.Printf("warning: failed to cleanup VM %s: %v", instance.ID, delErr)
+			}
+		}
 		return nil, err
 	case <-sandbox.agentProxy.Ready():
 	}
+
+	// Success! Clear the failed VM tracking since everything is working
+	sandbox.lastFailedVMID = ""
 
 	logger.Print("agent proxy is ready")
 

@@ -19,6 +19,7 @@ type Config struct {
 	ConfidentialType string
 	RootVolumeSize   int
 	Labels           map[string]string
+	CustomTags       []string
 }
 
 func (c Config) Redact() Config {

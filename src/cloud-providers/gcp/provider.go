@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/netip"
+	"os"
 	"strings"
 
 	compute "cloud.google.com/go/compute/apiv1"
@@ -154,6 +155,9 @@ func (p *gcpProvider) CreateInstance(ctx context.Context, podName, sandboxID str
 			},
 		},
 		Labels: p.serviceConfig.Labels,
+		Tags: &computepb.Tags{
+			Items: p.buildInstanceTags(podName, sandboxID),
+		},
 		Metadata: &computepb.Metadata{
 			Items: []*computepb.Items{
 				{
@@ -256,6 +260,27 @@ func (p *gcpProvider) DeleteInstance(ctx context.Context, instanceID string) err
 
 func (p *gcpProvider) Teardown() error {
 	return nil
+}
+
+// buildInstanceTags creates default tags for peer pod VMs
+func (p *gcpProvider) buildInstanceTags(podName, sandboxID string) []string {
+	tags := []string{
+		"peerpod",         // Base tag for all peer pods
+		"kata-pod-vm",     // Kata containers identifier
+		"confidential-vm", // CC identifier
+	}
+
+	// Add cluster-specific tags if available from environment
+	if clusterName := os.Getenv("CLUSTER_NAME"); clusterName != "" {
+		tags = append(tags, fmt.Sprintf("gke-%s", clusterName))
+	}
+
+	// Add any custom tags from configuration
+	if p.serviceConfig.CustomTags != nil {
+		tags = append(tags, p.serviceConfig.CustomTags...)
+	}
+
+	return tags
 }
 
 func hasAnyPrefix(s string, prefixes ...string) bool {

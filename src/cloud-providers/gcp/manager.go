@@ -34,9 +34,17 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 	var labelsStr string
 	flags.StringVar(&labelsStr, "gcp-labels", "", "Labels for the Pod VMs (key1=value1,key2=value2)")
 
+	var tagsStr string
+	flags.StringVar(&tagsStr, "gcp-tags", "", "Custom tags for the Pod VMs (tag1,tag2,tag3)")
+
 	// Parse labels after flag parsing
 	if labelsStr != "" {
 		gcpcfg.Labels = parseLabels(labelsStr)
+	}
+
+	// Parse tags after flag parsing
+	if tagsStr != "" {
+		gcpcfg.CustomTags = parseTags(tagsStr)
 	}
 }
 
@@ -49,6 +57,15 @@ func (_ *Manager) LoadEnv() {
 		provider.DefaultToEnv(&labelsEnv, "GCP_LABELS", "")
 		if labelsEnv != "" {
 			gcpcfg.Labels = parseLabels(labelsEnv)
+		}
+	}
+
+	// Load tags from environment if not already set
+	if gcpcfg.CustomTags == nil {
+		var tagsEnv string
+		provider.DefaultToEnv(&tagsEnv, "GCP_TAGS", "")
+		if tagsEnv != "" {
+			gcpcfg.CustomTags = parseTags(tagsEnv)
 		}
 	}
 }
@@ -81,4 +98,23 @@ func parseLabels(labelsStr string) map[string]string {
 	}
 
 	return labels
+}
+
+// parseTags converts a comma-separated string of tags into a slice
+func parseTags(tagsStr string) []string {
+	if tagsStr == "" {
+		return nil
+	}
+
+	var tags []string
+	tagList := strings.Split(tagsStr, ",")
+
+	for _, tag := range tagList {
+		tag = strings.TrimSpace(tag)
+		if tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+
+	return tags
 }

@@ -40,15 +40,17 @@ type cloudService struct {
 type sandboxID string
 
 type sandbox struct {
-	agentProxy    proxy.AgentProxy
-	podNetwork    *tunneler.Config
-	cloudConfig   *cloudinit.CloudConfig
-	id            sandboxID
-	podName       string
-	podNamespace  string
-	instanceName  string
-	instanceID    string
-	netNSPath     string
-	spec          provider.InstanceTypeSpec
-	sshClientInst *wnssh.SshClientInstance
+	agentProxy     proxy.AgentProxy
+	podNetwork     *tunneler.Config
+	cloudConfig    *cloudinit.CloudConfig
+	id             sandboxID
+	podName        string
+	podNamespace   string
+	instanceName   string
+	instanceID     string
+	netNSPath      string
+	spec           provider.InstanceTypeSpec
+	sshClientInst  *wnssh.SshClientInstance
+	retryCount     int
+	lastFailedVMID string // Track failed VM for cleanup
 }
