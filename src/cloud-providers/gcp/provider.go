@@ -185,14 +185,10 @@ func (p *gcpProvider) CreateInstance(ctx context.Context, podName, sandboxID str
 		},
 	}
 
-	if !p.serviceConfig.DisableCVM {
-		if p.serviceConfig.ConfidentialType == "" {
-			return nil, fmt.Errorf("ConfidentialType must be set when using Confidential VM.")
-		}
-
+	if p.serviceConfig.DisableCVM != true && p.serviceConfig.ConfidentialInstanceType != "" {
 		instanceResource.ConfidentialInstanceConfig = &computepb.ConfidentialInstanceConfig{
-			ConfidentialInstanceType:  proto.String(p.serviceConfig.ConfidentialType),
 			EnableConfidentialCompute: proto.Bool(true),
+			ConfidentialInstanceType:  proto.String(p.serviceConfig.ConfidentialInstanceType),
 		}
 		instanceResource.Scheduling = &computepb.Scheduling{
 			OnHostMaintenance: proto.String("TERMINATE"),
