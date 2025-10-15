@@ -1,0 +1,6 @@
+# Default environment file for agent-protocol-forwarder service
+# This file provides default empty values for OPTIONS and TLS_OPTIONS
+# These may be overridden by the misc-settings.sh script during VM initialization
+
+OPTIONS=""
+TLS_OPTIONS=""
