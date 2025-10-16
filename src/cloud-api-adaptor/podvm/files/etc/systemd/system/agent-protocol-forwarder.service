@@ -1,14 +1,17 @@
 [Unit]
 Description=Agent Protocol Forwarder
-After=kata-agent.service
+After=kata-agent.service netns@podns.service network-online.target
+Wants=netns@podns.service
+Requires=kata-agent.service
 DefaultDependencies=no
 
 [Service]
 Type=notify
-EnvironmentFile=-/etc/default/agent-protocol-forwarder
-ExecStart=/usr/local/bin/agent-protocol-forwarder -pod-namespace /run/netns/podns -kata-agent-socket /run/kata-containers/agent.sock ${TLS_OPTIONS:-} ${OPTIONS:-}
+ExecStart=/usr/local/bin/agent-protocol-forwarder -pod-namespace /run/netns/podns -kata-agent-socket /run/kata-containers/agent.sock
 Restart=on-failure
 RestartSec=5s
+# Add this to prevent early startup attempts
+ConditionPathExists=/run/kata-containers/agent.sock
 
 [Install]
 WantedBy=multi-user.target
